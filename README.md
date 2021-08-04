@@ -1,5 +1,5 @@
-go-ouitools
-===========
+Golang Mac Vendor Lookup
+========================
 
 Golang tools to work with Mac addresses and oui. Includes oui database to resolve to vendor. 
 
@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/davidbb/ouidb"
+	"github.com/GPORTALcloud/ouidb"
 )
 
 var (
@@ -43,10 +43,11 @@ go test
 ```
 
 ## References
-* wireshark oui database
+* [Wireshark Vendor Database](https://gitlab.com/wireshark/wireshark/-/raw/master/manuf)
 
 ## Contributors
-* Remco Verhoef (Dutchcoders) @remco_verhoef
+* Alexander Birkner
 * Claudio Matsuoka
 * David Barrera
+* Remco Verhoef (Dutchcoders) @remco_verhoef
 

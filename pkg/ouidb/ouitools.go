@@ -1,20 +1,17 @@
-// Package go-oui provides functions to work with MAC and OUI's
 package ouidb
 
 import (
 	"bufio"
 	"errors"
-	"os"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 )
 
-var ErrInvalidMACAddress = errors.New("invalid MAC address")
+var NotFoundErr = errors.New("vendor for mac not found")
 
 // Helper functions
-
 func macToUint64(address [6]byte) uint64 {
 	var a uint64
 	for _, x := range address {
@@ -167,15 +164,10 @@ type OuiDB struct {
 	blocks48 addressBlocks48
 }
 
-func (m *OuiDB) load(path string) error {
-	file, err := os.Open(path)
-	if err != nil {
-		return (err)
-	}
-
+func (db *OuiDB) load() error {
+	var err error
 	fieldsRe := regexp.MustCompile(`^(\S+)\t+(\S+)(\s+#\s+(\S.*))?`)
-
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(strings.NewReader(oui))
 	for scanner.Scan() {
 		text := scanner.Text()
 		if text == "" || text[0] == '#' || text[0] == '\t' {
@@ -189,10 +181,11 @@ func (m *OuiDB) load(path string) error {
 
 		// Split input text into address and organization name
 		fields := fieldsRe.FindAllStringSubmatch(text, -1)
-		// incorrectly formated database might not create fields, which would prevent the line from being parsed
+		// incorrectly formatted database might not create fields, which would prevent the line from being parsed
 		if fields == nil {
 			continue
 		}
+
 		addr := fields[0][1]
 		org := fields[0][2] + "        "
 
@@ -223,14 +216,14 @@ func (m *OuiDB) load(path string) error {
 
 		if mask > 24 {
 			block := addressBlock48{oui, uint8(mask), orgbytes}
-			m.blocks48 = append(m.blocks48, block)
+			db.blocks48 = append(db.blocks48, block)
 		} else {
 			var o [3]byte
 			o[0] = oui[0]
 			o[1] = oui[1]
 			o[2] = oui[2]
 			block := addressBlock24{o, uint8(mask), orgbytes}
-			m.blocks24 = append(m.blocks24, block)
+			db.blocks24 = append(db.blocks24, block)
 		}
 	}
 
@@ -242,16 +235,16 @@ func (m *OuiDB) load(path string) error {
 }
 
 // New returns a new OUI database loaded from the specified file.
-func New(file string) *OuiDB {
+func New() (*OuiDB, error) {
 	db := &OuiDB{}
-	if err := db.load(file); err != nil {
-		return nil
+	if err := db.load(); err != nil {
+		return nil, err
 	}
 
 	sort.Sort(db.blocks48)
 	sort.Sort(db.blocks24)
 
-	return db
+	return db, nil
 }
 
 func (db *OuiDB) blockLookup(address [6]byte) addressBlock {
@@ -265,14 +258,14 @@ func (db *OuiDB) blockLookup(address [6]byte) addressBlock {
 }
 
 // Lookup obtains the vendor organization name from the MAC address s.
-func (m *OuiDB) Lookup(s string) (string, error) {
-	addr, err := parseMAC(s)
+func (db *OuiDB) Lookup(mac string) (string, error) {
+	addr, err := parseMAC(strings.TrimSpace(mac))
 	if err != nil {
 		return "", err
 	}
-	block := m.blockLookup(addr)
+	block := db.blockLookup(addr)
 	if block == nil {
-		return "", nil
+		return "", NotFoundErr
 	}
 	return block.Organization(), nil
 }

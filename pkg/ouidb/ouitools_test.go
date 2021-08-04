@@ -1,4 +1,3 @@
-// Package go-oui provides functions to work with MAC and OUI's
 package ouidb
 
 import (
@@ -9,16 +8,16 @@ import (
 
 var db *OuiDB
 
-func lookup(t *testing.T, mac, org string) {
+func lookup(t *testing.T, mac, expectedOrg string, expectedError error) {
 	if db == nil {
 		t.Fatal("database not initialized")
 	}
 	v, err := db.Lookup(mac)
-	if err != nil {
+	if err != expectedError {
 		t.Fatalf("parse: %s: %s", mac, err.Error())
 	}
-	if v != org {
-		t.Fatalf("lookup: input %s, expect %q, got %q", mac, org, v)
+	if v != expectedOrg {
+		t.Fatalf("lookup: input %s, expect %q, got %q", mac, expectedOrg, v)
 	}
 	//t.Logf("%s => %s\n", mac, v)
 }
@@ -43,48 +42,39 @@ func invalid(t *testing.T, mac string) {
 }
 
 func TestInitialization(t *testing.T) {
-	db = New("oui.txt")
+	var err error
+	db, err = New()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if db == nil {
 		t.Fatal("can't load database file oui.txt")
 	}
 }
 
-func TestMissingDBFile(t *testing.T) {
-	db := New("bad-file")
-	if db != nil {
-		t.Fatal("didn't return nil on missing file")
-	}
-}
-
-func TestInvalidDBFile(t *testing.T) {
-	db := New("ouidb_test.go")
-	if db != nil {
-		t.Fatal("didn't return nil on bad file")
-	}
-}
-
 func TestLookup24(t *testing.T) {
-	lookup(t, "60:03:08:a0:ec:a6", "Apple")
+	lookup(t, "60:03:08:a0:ec:a6", "Apple", nil)
 }
 
 func TestLookup36(t *testing.T) {
-	lookup(t, "00:1B:C5:00:E1:55", "VigorEle")
+	lookup(t, "00:1B:C5:00:E1:55", "VigorEle", nil)
 }
 
 func TestLookup40(t *testing.T) {
-	lookup(t, "20-52-45-43-56-aa", "Receive")
+	lookup(t, "20-52-45-43-56-aa", "Receive", nil)
 }
 
 func TestLookupUnknown(t *testing.T) {
-	lookup(t, "ff:ff:00:a0:ec:a6", "")
+	lookup(t, "ff:ff:00:a0:ec:a6", "", NotFoundErr)
 }
 
 func TestFormatSingleZero(t *testing.T) {
-	lookup(t, "0:25:9c:42:0:62", "Cisco-Li")
+	lookup(t, "0:25:9c:42:0:62", "Cisco-Li", nil)
 }
 
 func TestFormatUppercase(t *testing.T) {
-	lookup(t, "0:25:9C:42:C2:62", "Cisco-Li")
+	lookup(t, "0:25:9C:42:C2:62", "Cisco-Li", nil)
 }
 
 func TestInvalidMAC1(t *testing.T) {
@@ -93,13 +83,13 @@ func TestInvalidMAC1(t *testing.T) {
 
 func TestLookupAll48(t *testing.T) {
 	for _, b := range db.blocks48 {
-		lookup(t, string48(b.oui), b.Organization())
+		lookup(t, string48(b.oui), b.Organization(), nil)
 	}
 }
 
 func TestLookupAll24(t *testing.T) {
 	for _, b := range db.blocks24 {
-		lookup(t, string24(b.oui), b.Organization())
+		lookup(t, string24(b.oui), b.Organization(), nil)
 	}
 }
 
