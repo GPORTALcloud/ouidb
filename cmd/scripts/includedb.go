@@ -2,7 +2,8 @@ package main
 
 import (
 	"io"
-	"io/ioutil"
+	"log"
+	"net/http"
 	"os"
 	"strings"
 )
@@ -10,16 +11,22 @@ import (
 // Reads all .txt files in the current folder
 // and encodes them as strings literals in textfiles.go
 func main() {
-	fs, _ := ioutil.ReadDir(".")
+
+	resp, err := http.Get("https://gitlab.com/wireshark/wireshark/raw/master/manuf")
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	file, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	fileContent := strings.ReplaceAll(string(file), "`", "'")
 	out, _ := os.Create("pkg/ouidb/database.go")
 	out.Write([]byte("package ouidb \n\nconst (\n"))
-	for _, f := range fs {
-		if strings.HasSuffix(f.Name(), ".txt") {
-			out.Write([]byte(strings.TrimSuffix(f.Name(), ".txt") + " = `"))
-			f, _ := os.Open(f.Name())
-			io.Copy(out, f)
-			out.Write([]byte("`\n"))
-		}
-	}
+	out.Write([]byte("oui = `"))
+	io.Copy(out, strings.NewReader(fileContent))
+	out.Write([]byte("`\n"))
 	out.Write([]byte(")\n"))
 }
